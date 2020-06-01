@@ -1,4 +1,3 @@
-#!/home/cmeder/miniconda3/bin/python
 # -*- coding: utf-8 -*-
 
 """
@@ -9,11 +8,14 @@ record. The user may specify a gap duration threshold below which the discharge
 values are linearly interpolated between starting and ending values. Longer 
 duration gaps in the timeseries are filled with no data (i.e. '-901').   
 
+Author: Tim Tschetter
+
+Updates: (MK)
 This script has been modified to able to fill data other than USGS gage data.
 The character that starts each line of data (which must not start a header line)
 must be specified and the date format in the input file must be specified - it
 will automatically output in date format '%Y-%m-%d %H:%M' but this can be edited. 
-The delimeter (tab versus comma or other) must also be specified.
+The delimeter (tab versus comma or other) must also be specified. 
 
 20200601 Updates (CCM)
 - Print statements for Python 3
