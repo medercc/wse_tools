@@ -1,3 +1,4 @@
+#!/home/cmeder/miniconda3/envs/uwgda2020_latest/bin/python3
 
 """
 1D linear interpolation on a 2 column csv file using scipy interpolation
@@ -13,8 +14,12 @@ import os
 import argparse
 import pandas as pd
 import numpy as np 
+import datetime
 from numpy import genfromtxt
 from scipy import interpolate
+
+# Set date format for timeseries inut
+DateFormat = '%Y-%M-%d %H:%M'
 
 # Initiate the parser
 parser = argparse.ArgumentParser()
@@ -22,6 +27,7 @@ parser = argparse.ArgumentParser()
 # Add lshort arguments
 parser.add_argument("-v", nargs='+', help="X values for interpolation, enter values in a space-delimited list [if -vf not specified]")
 parser.add_argument("-vf", help="File containing X values for interpolation [if -v not specified]")
+parser.add_argument("-ts", help="File containing timeseries with X values for interpolation [if -v or -vf not specified]")
 parser.add_argument("-i", required=True, help="Input filename in csv format, limited to 2 columns, assumes 1 header line [required]")
 parser.add_argument("-o", help="Output filename [optional]")
 parser.add_argument("-e", action='store_true', help="Extrapolation allowed")
@@ -76,8 +82,26 @@ elif args.vf:
 		print("File not found: {}".format(int_x_fin))
 		exit()
 
-elif (not args.v) & (not args.vf): # Neither specified
-	print("Values for interpolation not specified. Please specify -v or -vf.")
+# From timeseries file
+elif args.ts:
+	int_x_fin = args.ts # filename
+
+	print(int_x_fin)
+	# Check if the file exists
+	try:
+		with open(int_x_fin) as f:
+			# Read the timeseries csv into pandas dataframe for interpolation
+			data_int_df = pd.read_csv(f, names=['Datetime','int_x'], header=0)
+			datetime=data_int_df['Datetime']
+			int_x = data_int_df['int_x']
+			print("Interpolate at X values: {}".format(int_x))
+
+	except FileNotFoundError:
+		print("File not found: {}".format(int_x_fin))
+		exit()
+
+elif (not args.v) & (not args.vf) & (not args.ts): # Neither specified
+	print("Values for interpolation not specified. Please specify -v, -vf or -ts.")
 	exit()
 
 #
@@ -105,10 +129,19 @@ print("Interpolated Y values:\n {}".format(int_y))
 # Write the results to file, if requested
 if args.o:
 	fout = args.o 
-	f = open(fout, 'wb')
-	for i in range(len(int_x)):
-		f.write("{},{}\n".format(int_x[i],int_y[i]).encode()) # .encode added for Python 3 compatibility
-	f.close()
+
+	# If this is a timeseries, write original columns plus interpolated values
+	if args.ts: 
+		data_int_df['int_y'] = int_y
+		data_int_df.set_index('Datetime', inplace=True)
+		data_int_df.to_csv(fout, index_label='Datetime', columns=['int_x','int_y'], float_format='%.2f', date_format=DateFormat)
+	
+	# Otherwise, just write out int_x and int_y values
+	else:
+		f = open(fout, 'wb')
+		for i in range(len(int_x)):
+			f.write("{},{}\n".format(int_x[i],int_y[i]).encode()) # .encode needed for Python 3 compatibility
+		f.close()
 
 	print("Results written to file: {}".format(fout))
 else:
