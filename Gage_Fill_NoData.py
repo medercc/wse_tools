@@ -23,11 +23,17 @@ import pandas as pd
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import pandas_bokeh
+import seaborn as sns
+# Seaborn settings
+sns.set(style="darkgrid")
+#sns.set_palette(sns.set_palette('colorblind'))
+sns.set_palette(sns.set_palette('pastel'))
 
 #
 # USER INPUTS
 #
-FileName='usgs_flow_ex.txt'
+#FileName = 'usgs_flow_ex.txt'
+FileName = 'usgs_12108500_flow.txt'
 Agency = "USGS" # KC (King County) or USGS 
 Timestep = 15 # in minutes
 MaxGap = 180 # in minutes
@@ -40,7 +46,7 @@ if Agency == "KC": # King County
 	Delimiter = ','
 
 elif Agency == "USGS":
-	HeaderLines = 31
+	HeaderLines = 32 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
 	ColumnNames = ['Agency','Gage_ID','Datetime','Timezone','Discharge','Notes'] # Notes 'Discharge' may be 'Stage', as long as it's in the same column location in the input
 	Delimiter = '\t'
 
