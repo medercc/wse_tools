@@ -8,7 +8,7 @@ Fills missing data in the input gage record.
 - Rounds all input timeseries values to the nearest 15 minutes
 - Creates a continuous timeseries based on time range of the input data
 - Interpolates missing data in the gage record for which the timestep range is less than MaxGap
-- Returns: filled timeseries, 
+- Returns: filled timeseries file, summary of missing and interpolated timestamps, and a check plot  
 
 Based on Tim Tschetter script
 
@@ -32,7 +32,6 @@ sns.set_palette(sns.set_palette('pastel'))
 #
 # USER INPUTS
 #
-#FileName = 'usgs_flow_ex.txt'
 FileName = 'usgs_12108500_flow.txt'
 Agency = "USGS" # KC (King County) or USGS 
 Timestep = 15 # in minutes
@@ -42,12 +41,13 @@ DateFormat = '%Y-%m-%d %H:%M' # Format for export only, any datetime format is r
 # Set file read parameters
 if Agency == "KC": # King County
 	HeaderLines = 0 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
-	ColumnNames = ['Site_Code','Collect Date (UTC)','Collect Date (local)','Stage','Discharge'] 
+	ColumnNames = ['Site_Code','Collect Date (UTC)','Collect Date (local)','Stage','Discharge'] # should be fixed
 	Delimiter = ','
 
 elif Agency == "USGS":
 	HeaderLines = 32 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
 	ColumnNames = ['Agency','Gage_ID','Datetime','Timezone','Discharge','Notes'] # Notes 'Discharge' may be 'Stage', as long as it's in the same column location in the input
+	TimeZone = 'PDT' # enter the daylight savings shorthand for timezone in the USGS gage data
 	Delimiter = '\t'
 
 #
@@ -81,7 +81,7 @@ elif Agency == "USGS":
 
 	# Update the Datetime column to shift daylight savings times (PDT) back to standard times
 	# When Timezone col is PDT (daylight savings time), set Datetime col to LocalDT_Minus_1hr, otherwise keep value in Datetime col (this is PST)
-	df['Datetime'] = np.where((df['Timezone'] == 'PDT'), df['LocalDT_Minus_1hr'], df['Datetime'])
+	df['Datetime'] = np.where((df['Timezone'] == TimeZone), df['LocalDT_Minus_1hr'], df['Datetime'])
 
 # Set the Datetime column as the index
 df.set_index('Datetime', inplace=True)
@@ -147,11 +147,11 @@ df_full['Discharge'] = np.where((df_full['Interp_Flag'] == 1), df_full['Discharg
 print("Filled records: {}".format(len(df_full[df_full['Interp_Flag'] == 1])))
 
 # Quick check plot to verify interpolation looks good
-f, ax = plt.subplots(figsize=(14,8))
+f, ax = plt.subplots(figsize=(20,12))
 ax.plot(df_full['Discharge'], label='Discharge')
 ax.plot()
 ax.legend()
-ax.grid()
+#ax.grid()
 ax.set_xlabel('Datetime')
 ax.set_ylabel('Gage Value')
 plt.savefig('gage_data.png', bbox_inches='tight')
