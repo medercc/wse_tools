@@ -10,7 +10,7 @@ Scales longterm Seatac precipitation record and extends it with a local gage rec
 - Concatenates the scaled, truncated Seatac record with the local gage
 - Replaces specific values called out in a replacement record file
 - No filling or interpolation of missing data occurs
-- Returns: complete, concatenated record and a plot of all the records
+- Returns: complete concatenated record, list of datetimes for which gap to next timestep is > 15 mins, and a plot of all the records
 
 Chris Meder
 June 2020
@@ -32,6 +32,7 @@ sns.set_palette(sns.set_palette('pastel'))
 #
 # USER INPUT
 #
+
 # Seatac gage
 sea_fn = 'Seatac_15min_Precip_1948-2010.txt'
 sea_HeaderLines = 0 # 0-based
@@ -44,15 +45,16 @@ local_HeaderLines = 0 # 0-based
 local_ColNames = ['Gage','Collect Time (UTC)','Collect Time (Local)','Precip (in)','Notes'] # assumes these column names based on standard KC gage headers 
 local_Delimiter = ','
 # Replacement record
-replace = True # True / False: True if you want to implement precip value replacement changes at specified datetimes in the record, otherwise set to False 
+replace = False # True / False: True if you want to implement precip value replacement changes at specified datetimes in the record, otherwise set to False 
 repl_fn = 'repl_record.csv'
 repl_HeaderLines = 0 # 0-based
 repl_ColNames = ['Datetime','Precip (in)'] # assumes these column names based on standard KC gage headers 
 repl_Delimiter = ','
 # Scaled, extended record output filename
 out_fn = 'Seatac_15min_Precip_Scale_Extended_with_Enumclaw_44u.csv'
+tsgaps_fn = 'Seatac_Extend_Precip_Record_Gaps_GT_15min.txt'
 # Plot filename
-plot_fn = 'scaled_extended_precip_plot.png'
+plot_fn = 'Scaled_Extended_Precip_Plot.png'
 
 # END USER INPUT
 
@@ -94,7 +96,13 @@ local_df['Datetime (PST)'] = local_df['Collect Time (UTC)'] - timedelta(hours=8)
 # Set Datetime to index
 local_df.set_index(local_df['Datetime (PST)'], inplace=True)
 
-# Drop unnecessary columns
+# Find time delta between each timestep
+local_df['Delta'] = local_df['Datetime (PST)'] - local_df['Datetime (PST)'].shift()
+
+# Create new df of timesteps where the time delta next data point in the record is greater than 15 mins (report this below)
+local_missing_df = local_df[local_df['Delta'] > timedelta(hours=0.25)]
+
+# Drop unnecessary columns from local gage df
 local_df.drop(columns=['Gage','Collect Time (UTC)','Collect Time (Local)','Notes','Datetime (PST)'], inplace=True)
 
 #
@@ -133,10 +141,21 @@ if replace:
 	print("Replacing specified values")
 	extend_df.update(repl_df)
 
+#
+# Write output
+#
+
 # Write out scaled, extended gage record to csv
 try:
 	print("Writing extended record to file: {}".format(out_fn))
 	extend_df.to_csv(out_fn, index_label=['Datetime'], float_format='%.3f')
+except IOError:
+	print("Could not write output file")
+
+# Write out timestamps where the gap to the next timestamp is > 15 mins
+try:
+	print("Writing timestamps with gap to next timestamp > 15 mins to file: {}".format(tsgaps_fn))
+	local_missing_df.to_csv(tsgaps_fn, index_label=['Datetime'], columns=['Delta'])
 except IOError:
 	print("Could not write output file")
 
