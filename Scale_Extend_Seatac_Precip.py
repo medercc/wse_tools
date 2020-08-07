@@ -53,7 +53,7 @@ repl_HeaderLines = 0 # 0-based
 repl_ColNames = ['Datetime','Precip (in)'] # assumes these column names based on standard KC gage headers 
 repl_Delimiter = ','
 # Scaled, extended record output filename
-out_fn = 'Seatac_15min_Precip_Scale_Extended_with_BlackDiamond.csv'
+out_fn = 'Seatac_15min_Precip_Scaled_Extended_with_BlackDiamond.csv'
 # Plot filename
 plot_fn = out_fn[:-4]+'_plot.png'
 
@@ -76,9 +76,9 @@ sea_df.set_index(sea_df['Datetime'], inplace=True)
 # Drop Datetime column
 sea_df.drop(columns=['Datetime'], inplace=True)
 
-# Apply scalar to precip raw (the resulting scaled precip is stored as 'Precip (in)' to enable concatenation below)
+# Apply scalar to precip raw (the resulting scaled precip is stored as 'Precipitation (inches)' to enable concatenation with local_df below which uses the same column name)
 print("Scaling Seatac precip by {}".format(sea_Scalar))
-sea_df['Precip (in)'] = sea_df['Precip Raw (in)'] * sea_Scalar
+sea_df['Precipitation (inches)'] = sea_df['Precip Raw (in)'] * sea_Scalar
 
 #
 # Local record
