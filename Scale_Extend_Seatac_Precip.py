@@ -1,9 +1,9 @@
-#!/home/cmeder/miniconda3/bin/python
+#!/usr/bin/env conda run -n gda python
 
 """
 Scales longterm Seatac precipitation record and extends it with a local gage record.
 
-- User specifies Seatac longterm record, local gage record, multiplier for Seatac, and a replacement record for specific dates if desired
+- User specifies Seatac (or any other) longterm record, local gage record, multiplier for Seatac, and a replacement record for specific dates if desired
 - Converts local time in the local gage to a consistent, non-daylight savings standard time (ie. PDT will become PST)
 - Scales Seatac by a user-specified factor
 - Truncates Seatac record at the first timestamp of the local gage
@@ -22,7 +22,6 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
-import pandas_bokeh
 import seaborn as sns
 # Seaborn settings
 sns.set(style="darkgrid")
@@ -34,27 +33,29 @@ sns.set_palette(sns.set_palette('pastel'))
 #
 
 # Seatac gage
-sea_fn = 'Seatac_15min_Precip_1948-2010.txt'
+sea_fn = 'Seatac_15min_Precip_1948-2010.csv'
 sea_HeaderLines = 0 # 0-based
 sea_ColNames = ['Datetime','Precip Raw (in)'] # assumes 2 columns of data, named as labeled here. Input names don't matter.  
 sea_Delimiter = ','
-sea_Scalar = 1.53 # scalar to apply to SeaTac precip
+sea_Scalar = 1.26 # scalar to apply to SeaTac precip
 # Local gage
-local_fn = 'Hydrology_Enumclaw_44u_Raw.csv' # csv file containing local gage precip record
+local_fn = 'BlackDiamond_precip.csv' # csv file containing local gage precip record
 local_HeaderLines = 0 # 0-based
-local_ColNames = ['Gage','Collect Time (UTC)','Collect Time (Local)','Precip (in)','Notes'] # assumes these column names based on standard KC gage headers 
+#local_ColNames = ['Gage','Collect Time (UTC)','Collect Time (Local)','Precip (in)','Notes'] # assumes these column names based on standard KC gage headers 
+local_ColNames = ['Collect Date (UTC)','Precipitation (inches)'] # Read only these assumed column names based on standard KC gage headers 
+dtypes = {'Collect Date (UTC)': 'str', 'Precipitation (inches)': 'float'} # tell Pandas the data type for each column
+parse_dates = ['Collect Date (UTC)']
 local_Delimiter = ','
 # Replacement record
 replace = False # True / False: True if you want to implement precip value replacement changes at specified datetimes in the record, otherwise set to False 
-repl_fn = 'repl_record.csv'
+repl_fn = 'Enumclaw_repl_record.csv'
 repl_HeaderLines = 0 # 0-based
 repl_ColNames = ['Datetime','Precip (in)'] # assumes these column names based on standard KC gage headers 
 repl_Delimiter = ','
 # Scaled, extended record output filename
-out_fn = 'Seatac_15min_Precip_Scale_Extended_with_Enumclaw_44u.csv'
-tsgaps_fn = 'Seatac_Extend_Precip_Record_Gaps_GT_15min.txt'
+out_fn = 'Seatac_15min_Precip_Scale_Extended_with_BlackDiamond.csv'
 # Plot filename
-plot_fn = 'Scaled_Extended_Precip_Plot.png'
+plot_fn = out_fn[:-4]+'_plot.png'
 
 # END USER INPUT
 
@@ -85,13 +86,14 @@ sea_df['Precip (in)'] = sea_df['Precip Raw (in)'] * sea_Scalar
 
 # Read local gage precip
 print("Reading local record: {}".format(local_fn))
-local_df = pd.read_csv(local_fn, delimiter=local_Delimiter, header=local_HeaderLines, names=local_ColNames, index_col=False)
+#local_df = pd.read_csv(local_fn, delimiter=local_Delimiter, header=local_HeaderLines, names=local_ColNames, index_col=False)
+local_df = pd.read_csv(local_fn, dtype=dtypes, parse_dates=parse_dates, delimiter=local_Delimiter, header=local_HeaderLines, usecols=local_ColNames, index_col=False)
 
 # Convert datetimes to datetime64 
-local_df['Collect Time (UTC)'] = pd.to_datetime(local_df['Collect Time (UTC)'])
+local_df['Collect Date (UTC)'] = pd.to_datetime(local_df['Collect Date (UTC)'])
 
 # Shift Collect Time (UTC) by 8 hrs to get PST (no daylight savings time)
-local_df['Datetime (PST)'] = local_df['Collect Time (UTC)'] - timedelta(hours=8)
+local_df['Datetime (PST)'] = local_df['Collect Date (UTC)'] - timedelta(hours=8)
 
 # Set Datetime to index
 local_df.set_index(local_df['Datetime (PST)'], inplace=True)
@@ -103,7 +105,8 @@ local_df['Delta'] = local_df['Datetime (PST)'] - local_df['Datetime (PST)'].shif
 local_missing_df = local_df[local_df['Delta'] > timedelta(hours=0.25)]
 
 # Drop unnecessary columns from local gage df
-local_df.drop(columns=['Gage','Collect Time (UTC)','Collect Time (Local)','Notes','Datetime (PST)'], inplace=True)
+#local_df.drop(columns=['Gage','Collect Time (UTC)','Collect Time (Local)','Notes','Datetime (PST)','Delta'], inplace=True)
+local_df.drop(columns=['Collect Date (UTC)','Datetime (PST)','Delta'], inplace=True)
 
 #
 # Stitch the two gage records together at the overlap point
@@ -154,6 +157,7 @@ except IOError:
 
 # Write out timestamps where the gap to the next timestamp is > 15 mins
 try:
+	tsgaps_fn = out_fn[:-4]+'_Gaps_GT_15min.txt'
 	print("Writing timestamps with gap to next timestamp > 15 mins to file: {}".format(tsgaps_fn))
 	local_missing_df.to_csv(tsgaps_fn, index_label=['Datetime'], columns=['Delta'])
 except IOError:
@@ -162,13 +166,13 @@ except IOError:
 # Make a quick plot
 f, ax = plt.subplots(figsize=(20,12))
 
-ax.plot(extend_df.index, extend_df['Precip (in)'], label='Final Scaled, Extended')
-ax.plot(local_df.index, local_df['Precip (in)'], label='Local Gage Raw', linestyle=(0,(1,10)))
+ax.plot(extend_df.index, extend_df['Precip (in)'], label='Final Scaled, Extended', zorder=1)
+ax.plot(local_df.index, local_df['Precipitation (inches)'], label='Local Gage Raw', linestyle=':', zorder=2)
+ax.plot(sea_df.index, sea_df['Precip Raw (in)'], label='Seatac Gage Raw', linestyle=':', zorder=3)  
 if replace:
-    ax.scatter(repl_df.index, repl_df['Precip (in)'], label='Replacement Record', color='red')
-ax.plot(sea_df.index, sea_df['Precip Raw (in)'], label='Seatac Gage Raw', linestyle=':')  
+    ax.scatter(repl_df.index, repl_df['Precip (in)'], label='Replacement Record', color='red', zorder=10)
 ax.legend()
-ax.set_ylabel('Precip (in)')
+ax.set_ylabel('Precipitation (inches)')
 ax.set_title('Scaled, Extended Precipitation Based on Seatac Longterm Record')
 try:
 	plt.savefig(plot_fn, bbox_inches='tight')
