@@ -86,7 +86,6 @@ sea_df['Precip (in)'] = sea_df['Precip Raw (in)'] * sea_Scalar
 
 # Read local gage precip
 print("Reading local record: {}".format(local_fn))
-#local_df = pd.read_csv(local_fn, delimiter=local_Delimiter, header=local_HeaderLines, names=local_ColNames, index_col=False)
 local_df = pd.read_csv(local_fn, dtype=dtypes, parse_dates=parse_dates, delimiter=local_Delimiter, header=local_HeaderLines, usecols=local_ColNames, index_col=False)
 
 # Convert datetimes to datetime64 
@@ -105,7 +104,6 @@ local_df['Delta'] = local_df['Datetime (PST)'] - local_df['Datetime (PST)'].shif
 local_missing_df = local_df[local_df['Delta'] > timedelta(hours=0.25)]
 
 # Drop unnecessary columns from local gage df
-#local_df.drop(columns=['Gage','Collect Time (UTC)','Collect Time (Local)','Notes','Datetime (PST)','Delta'], inplace=True)
 local_df.drop(columns=['Collect Date (UTC)','Datetime (PST)','Delta'], inplace=True)
 
 #
