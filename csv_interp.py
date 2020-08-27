@@ -1,6 +1,7 @@
-#!/home/cmeder/miniconda3/envs/uwgda2020_latest/bin/python3
+#!/usr/bin/env conda run -n gda python
 
 """
+Python 3
 1D linear interpolation on a 2 column csv file using scipy interpolation
 Assumes a single header line in the csv, can be changed in 'genfromtxt' line below
 
@@ -30,7 +31,8 @@ parser.add_argument("-vf", help="File containing X values for interpolation [if 
 parser.add_argument("-ts", help="File containing timeseries with X values for interpolation [if -v or -vf not specified]")
 parser.add_argument("-i", required=True, help="Input filename in csv format, limited to 2 columns, assumes 1 header line [required]")
 parser.add_argument("-o", help="Output filename [optional]")
-parser.add_argument("-e", action='store_true', help="Extrapolation allowed")
+parser.add_argument("-outX", action='store_true', help="Output only Y values [optional]")
+parser.add_argument("-e", action='store_true', help="Allow extrapolation")
 
 # Read arguments from the command line
 args = parser.parse_args()
@@ -114,34 +116,47 @@ if args.e:
 
 	# Notify user if extrapolation occured, check for int_x outside of bounds
 	if ((float(min(int_x)) < min(X)) or (float(max(int_x)) > max(X))):
-		print("WARNING: X values for interpolation outside input data range. Extrapolation occurred.")
+		print("WARNING: X values for interpolation are outside input data range. Extrapolation occurred.")
 else:
 	# Use Numpy: holds values constant if int_x is outside range 
 	int_y = np.interp(int_x, X, Y) 
 	
 	# Notify user if extrapolation occured, check for int_x outside of bounds
 	if ((float(min(int_x)) < min(X)) or (float(max(int_x)) > max(X))):
-		print("WARNING: X values for interpolation outside input data range. Values held constant.")
+		print("WARNING: X values for interpolation are outside input data range. Values were held constant at input data range limits.")
 
 # Write results to the screen
-print("Interpolated Y values:\n {}".format(int_y))
+print("Interpolated Y values:\n {}".format(str(int_y)))
 
 # Write the results to file, if requested
 if args.o:
 	fout = args.o 
 
-	# If this is a timeseries, write original columns plus interpolated values
+	# If this is a timeseries, write datetime index plus interpolated values
 	if args.ts: 
 		data_int_df['int_y'] = int_y
 		data_int_df.set_index('Datetime', inplace=True)
-		data_int_df.to_csv(fout, index_label='Datetime', columns=['int_x','int_y'], float_format='%.2f', date_format=DateFormat)
+		# If X values output requested, output int_x and int_y
+		if args.outX:
+			data_int_df.to_csv(fout, index_label='Datetime', columns=['int_x','int_y'], float_format='%.2f', date_format=DateFormat)
+		# Otherwise just write out int_y
+		else:
+			data_int_df.to_csv(fout, index_label='Datetime', columns=['int_y'], float_format='%.2f', date_format=DateFormat)
 	
-	# Otherwise, just write out int_x and int_y values
+	# Otherwise
 	else:
-		f = open(fout, 'wb')
-		for i in range(len(int_x)):
-			f.write("{},{}\n".format(int_x[i],int_y[i]).encode()) # .encode needed for Python 3 compatibility
-		f.close()
+		# If X values output requested, output int_x and int_y
+		if args.outX:
+			f = open(fout, 'wb')
+			for i in range(len(int_x)):
+				f.write("{},{}\n".format(int_x[i],int_y[i]).encode()) # .encode needed for Python 3 compatibility
+			f.close()
+		# Otherwise just write out int_y
+		else: 
+			f = open(fout, 'wb')
+			for i in range(len(int_x)):
+				f.write("{},{}\n".format(int_y[i]).encode()) # .encode needed for Python 3 compatibility
+			f.close()
 
 	print("Results written to file: {}".format(fout))
 else:
