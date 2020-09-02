@@ -5,8 +5,22 @@ Python 3
 1D linear interpolation on a 2 column csv file using scipy interpolation
 Assumes a single header line in the csv, can be changed in 'genfromtxt' line below
 
+Inputs:
+- X values AT which to interpolate. These data may be specified in one of three ways:
+	1. A space-delimited list of the values entered on the command line (-X argument)
+	2. A text file containing the values (-Xf argument)
+	3. A csv file timeseries containing the values, assumes first column is datetime and second column contains the X values (-Xts argument)
+- X,Y data FROM which to interpolate. Specified in csv file format (-i argument)
+
+Outputs:
+- Y values interpolated at the requested X values, in csv file format
+- If the X values were specified in a timeseries, the timeseries is written to the output with the Y values
+- If the X values in the timeseries are desired in the output file, use the -outX argument 
+
+Extrapolation is not allowed by default, but can be requested by specifying the -e option
+
 Chris Meder
-6/2/2020
+9/2/2020
 
 """
 
@@ -26,12 +40,12 @@ DateFormat = '%Y-%M-%d %H:%M'
 parser = argparse.ArgumentParser()
 
 # Add lshort arguments
-parser.add_argument("-v", nargs='+', help="X values for interpolation, enter values in a space-delimited list [if -vf not specified]")
-parser.add_argument("-vf", help="File containing X values for interpolation [if -v not specified]")
-parser.add_argument("-ts", help="File containing timeseries with X values for interpolation [if -v or -vf not specified]")
+parser.add_argument("-X", nargs='+', help="X values for interpolation, enter values in a space-delimited list [if -Xf or -Xts not specified]")
+parser.add_argument("-Xf", help="File containing X values for interpolation [if -X and -Xts not specified]")
+parser.add_argument("-Xts", help="File containing timeseries with X values for interpolation, assumes first column is datetime and second column contains the X values [if -X or -Xf not specified]")
 parser.add_argument("-i", required=True, help="Input filename in csv format, limited to 2 columns, assumes 1 header line [required]")
 parser.add_argument("-o", help="Output filename [optional]")
-parser.add_argument("-outX", action='store_true', help="Output only Y values [optional]")
+parser.add_argument("-outX", action='store_true', help="Output the requested X values [optional]")
 parser.add_argument("-e", action='store_true', help="Allow extrapolation")
 
 # Read arguments from the command line
@@ -126,7 +140,7 @@ else:
 		print("WARNING: X values for interpolation are outside input data range. Values were held constant at input data range limits.")
 
 # Write results to the screen
-print("Interpolated Y values:\n {}".format(str(int_y)))
+print("Interpolated Y values:\n {}".format(int_y))
 
 # Write the results to file, if requested
 if args.o:
