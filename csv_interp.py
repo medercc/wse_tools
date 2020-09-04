@@ -78,13 +78,13 @@ if args.i:
 # 
 
 # List from command line
-if args.v: 
-	int_x = args.v # filename
+if args.X: 
+	int_x = args.X # filename
 	print("Interpolate at X values:\n {}".format(int_x))
 
 # From file
-elif args.vf:
-	int_x_fin = args.vf # filename
+elif args.Xf:
+	int_x_fin = args.Xf # filename
 
 	# Check if the file exists
 	try:
@@ -99,8 +99,8 @@ elif args.vf:
 		exit()
 
 # From timeseries file
-elif args.ts:
-	int_x_fin = args.ts # filename
+elif args.Xts:
+	int_x_fin = args.Xts # filename
 
 	print(int_x_fin)
 	# Check if the file exists
@@ -116,25 +116,30 @@ elif args.ts:
 		print("File not found: {}".format(int_x_fin))
 		exit()
 
-elif (not args.v) & (not args.vf) & (not args.ts): # Neither specified
-	print("Values for interpolation not specified. Please specify -v, -vf or -ts.")
+elif (not args.X) & (not args.Xf) & (not args.Xts): # Neither specified
+	print("Values for interpolation not specified. Please specify -X, -Xf or -Xts.")
 	exit()
 
 #
 # Interpolate at specified values
 #
+
+# If extrapolation was specified
 if args.e:
-	# Use Scipy: allows extrapolation
+	# Use Scipy: allows extrapolation, but does not handle ignoring values of -901
 	f = interpolate.interp1d(X, Y, fill_value='extrapolate')
 	int_y = f(int_x)
 
 	# Notify user if extrapolation occured, check for int_x outside of bounds
 	if ((float(min(int_x)) < min(X)) or (float(max(int_x)) > max(X))):
 		print("WARNING: X values for interpolation are outside input data range. Extrapolation occurred.")
+
+# No extrapolation
 else:
 	# Use Numpy: holds values constant if int_x is outside range 
-	int_y = np.interp(int_x, X, Y) 
-	
+	UNDEF = -901.0 # this value will not be interpolated, it will output int_y = -901
+	int_y = np.interp(int_x, X, Y, left=UNDEF) 
+
 	# Notify user if extrapolation occured, check for int_x outside of bounds
 	if ((float(min(int_x)) < min(X)) or (float(max(int_x)) > max(X))):
 		print("WARNING: X values for interpolation are outside input data range. Values were held constant at input data range limits.")
@@ -147,7 +152,7 @@ if args.o:
 	fout = args.o 
 
 	# If this is a timeseries, write datetime index plus interpolated values
-	if args.ts: 
+	if args.Xts: 
 		data_int_df['int_y'] = int_y
 		data_int_df.set_index('Datetime', inplace=True)
 		# If X values output requested, output int_x and int_y
