@@ -1,4 +1,4 @@
-#!/home/cmeder/miniconda3/bin/python
+#!/usr/bin/env conda run -n gda python
 
 """
 Fills missing data in the input gage record.
@@ -18,6 +18,7 @@ June 2020
 """
 
 # Standard package imports
+import re
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -32,7 +33,7 @@ sns.set_palette(sns.set_palette('pastel'))
 #
 # USER INPUTS
 #
-FileName = 'usgs_12108500_flow.txt'
+FileName = 'ParadiseCreek_USGS_13346800_15min_2018-2020.txt'
 Agency = "USGS" # KC (King County) or USGS 
 Timestep = 15 # in minutes
 MaxGap = 180 # in minutes
@@ -47,16 +48,17 @@ if Agency == "KC": # King County
 elif Agency == "USGS":
 	HeaderLines = 32 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
 	ColumnNames = ['Agency','Gage_ID','Datetime','Timezone','Discharge','Notes'] # Notes 'Discharge' may be 'Stage', as long as it's in the same column location in the input
+	dtypes = {'Agency': 'str', 'Gage_ID': 'str', 'Discharge': 'float', 'Notes': 'str'} # tell Pandas the data type for each column
 	TimeZone = 'PDT' # enter the daylight savings shorthand for timezone in the USGS gage data
-	Delimiter = '\t'
-
+	Delimiter = '\s{2,}'  # tab-delimited: '\t', multiple space-delimited: '\s{2,}'
 #
 # END USER INPUTS
 #
 
 # Load the gage data into a Pandas dataframe
+# 'engine='python' argument is required to properly implement the delimiter if it is a multiple whitespace character (\s{2,})
 print("Reading input file: {}".format(FileName))
-df = pd.read_csv(FileName, delimiter=Delimiter, header=HeaderLines, names=ColumnNames, index_col=False)
+df = pd.read_csv(FileName, dtype=dtypes, delimiter=Delimiter, header=HeaderLines, names=ColumnNames, index_col=False, engine='python')
 
 # Manage timestamps
 if Agency == "KC": # King County
