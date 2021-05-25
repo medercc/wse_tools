@@ -36,6 +36,9 @@ lr_file = 'Newaukum_XSEC_for_SurfaceDevelopment_LinearReferencing.csv'
 # END USER INPUTS
 #---
 
+# Flag to print debug output if needed (0=no, 1=yes)
+debug = 0
+
 # Columns to keep by name (the linear referencing .csv must use these column title names) 
 # FUTURE: Add functionality to specify cols by number, then name them as below upon import
 col_list = ('River','Reach','RiverStation','MEAS','ELEV')
@@ -133,7 +136,8 @@ for num, line in enumerate(farray):
             # If River, Reach is found in the grouped dataframe, set flag to search for the River Station next
             if riv_rch_string in line:
                 riv_rch_found = 1
-                #print("\nFound River Reach Match: {} {}\n------------------".format(row.River, row.Reach))
+                if (debug):
+                	print("\nFound River Reach Match: {} {}\n------------------".format(row.River, row.Reach))
                 # Break out of the grouped dataframe for loop search
                 break
                 
@@ -141,7 +145,9 @@ for num, line in enumerate(farray):
     if ((riv_rch_found == 1) & ("Type RM" in line)):
                     
         # Grab a subset of the grouped dataframe for the current River + Reach 
-        #print("Getting grouped data for: {} {}".format(row.River, row.Reach))
+        if (debug): 
+           	print("Getting grouped data for: {} {}".format(row.River, row.Reach))
+        
         df_riv_rch = df_grouped[(df_grouped.River == row.River) & (df_grouped.Reach == row.Reach)]
         
         # Check each River Station in the subset dataframe
@@ -163,7 +169,9 @@ for num, line in enumerate(farray):
         fout.write('#Sta/Elev= {}\n'.format(rs.NumPoints+2))
 
         # Get the subset of the linear referenced dataframe for the current River, Reach, River Station combination
-        #print("Getting survey for: {} {} {}".format(rs.River, rs.Reach, rs.RiverStation))
+        if (debug):
+        	print("Getting survey for: {} {} {}".format(rs.River, rs.Reach, rs.RiverStation))
+        
         df_rs = df_sort[(df_sort.River == rs.River) & (df_sort.Reach == rs.Reach) & (df_sort.RiverStation == rs.RiverStation)]
 
         # Cycle over the rows of the subset linear referenced dataframe (already sorted), extract MEAS and ELEV and save in an array 
