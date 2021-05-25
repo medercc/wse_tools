@@ -78,7 +78,7 @@ for num, line in enumerate(farray):
         # Skip to the next line
         next
         
-    # Sta/Elev ends when the #Mann line is encountered, so get the survey points and write them in now, before writing the #Mann line and moving on    
+    # Sta/Elev ends when the #Mann line is encountered. Write the survey data in before writing the #Mann line and moving on   
     if (sta_elev_found == 1) & ('#Mann=' in line):
         
         # Grab the previous line in the file array (last line of the old sta elev data), extract the last point 
@@ -133,13 +133,15 @@ for num, line in enumerate(farray):
             # If River, Reach is found in the grouped dataframe, set flag to search for the River Station next
             if riv_rch_string in line:
                 riv_rch_found = 1
+                #print("\nFound River Reach Match: {} {}\n------------------".format(row.River, row.Reach))
                 # Break out of the grouped dataframe for loop search
                 break
                 
     # When River + Reach is located, search for River Station (RS) in a successive line     
     if ((riv_rch_found == 1) & ("Type RM" in line)):
-        
+                    
         # Grab a subset of the grouped dataframe for the current River + Reach 
+        #print("Getting grouped data for: {} {}".format(row.River, row.Reach))
         df_riv_rch = df_grouped[(df_grouped.River == row.River) & (df_grouped.Reach == row.Reach)]
         
         # Check each River Station in the subset dataframe
@@ -149,7 +151,8 @@ for num, line in enumerate(farray):
             # If the River Station matches what's in line, set the flag
             if ((rs_string in line)):
                 rs_found = 1
-                print("Found: {}, {}, {}".format(rs.River, rs.Reach, rs.RiverStation))
+                print("Found River Station match: {}, {}, {}".format(rs.River, rs.Reach, rs.RiverStation))
+                break
                     
     # When the current River Station is located, find the #Sta/Elev line and set a flag
     if ((riv_rch_found == 1) & (rs_found == 1) & ("#Sta/Elev=" in line)):
@@ -157,10 +160,11 @@ for num, line in enumerate(farray):
         
         # Replace the number of Sta/Elev points in the line with NumPoints from the grouped dataframe, +2 to account 
         # for first and last taken from existing data
-        fout.write('#Sta/Elev= {}\n'.format(row.NumPoints+2))
+        fout.write('#Sta/Elev= {}\n'.format(rs.NumPoints+2))
 
         # Get the subset of the linear referenced dataframe for the current River, Reach, River Station combination
-        df_rs = df_sort[(df_sort.River == row.River) & (df_sort.Reach == row.Reach) & (df_sort.RiverStation == row.RiverStation)]
+        #print("Getting survey for: {} {} {}".format(rs.River, rs.Reach, rs.RiverStation))
+        df_rs = df_sort[(df_sort.River == rs.River) & (df_sort.Reach == rs.Reach) & (df_sort.RiverStation == rs.RiverStation)]
 
         # Cycle over the rows of the subset linear referenced dataframe (already sorted), extract MEAS and ELEV and save in an array 
         # to replace the station elevation points in the geom file
@@ -183,6 +187,6 @@ for num, line in enumerate(farray):
         fout.write(line)
 
 # Close the output filehandle
-fout.close()        
+fout.close()         
 
 print("New geometry file with survey is: {}".format(out_geom_file))
