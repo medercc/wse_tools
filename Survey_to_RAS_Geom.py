@@ -2,18 +2,19 @@
 
 """
 Python 3
-Replaces Station/Elevation data in a HEC-RAS geometry file with linear referenced survey station/elevation data
+Replaces Station/Elevation data in a HEC-RAS geometry file with linear referenced survey station/elevation data from a .csv file
 
 Inputs:
 1. A HEC-RAS geometry file (.g## format) with cross sections at the same river station locations as the linear referenced survey data 
-   table (typically derived from ArcMap). This file should contain station/elevation data from terrain (LiDAR) cross section cuts.
+   table (typically derived from ArcMap). This file should contain station/elevation data from terrain (LiDAR) cross section cuts, or
+   perhaps old survey data.
 2. A .csv formatted file containing linear referenced survey data at cross section river station locations in the HEC-RAS geometry file
-	- The .csv header must use the following column names: 'River','Reach','RiverStation','MEAS','ELEV', where 'MEAS' and 'ELEV' are 
-	  the linear referenced station and elevation of the survey data.
+	- The .csv header must currently use the following column names: 'River','Reach','RiverStation','MEAS','ELEV', where 'MEAS' and 'ELEV' 
+      are the linear referenced station and elevation of the survey data.
 
 Outputs:
-1. A new HEC-RAS geometry file (nominally named with extension .g99) with the linear referenced survey data replacing the terrain 
-   station/elevation data where river + reach + river station matches were found between the .g## and the .csv file. The first and last
+1. A new HEC-RAS geometry file (nominally named with extension .g99) with the linear referenced survey data replacing the old 
+   station/elevation data where river + reach + river station matches are found between the .g## and the .csv file. The first and last
    terrain sta/elev data points at each river station are maintained to appropriately locate the survey data. 
 
 Chris Meder
@@ -30,7 +31,7 @@ import pandas as pd
 # Read in RAS geometry file (.gXX format)
 in_geom_file = 'Newaukum.g07'
 
-# Set filename and columns to import
+# Set linear referenced data CSV filename 
 lr_file = 'Newaukum_XSEC_for_SurfaceDevelopment_LinearReferencing.csv'
 
 # END USER INPUTS
@@ -48,7 +49,7 @@ df = pd.read_csv(lr_file,usecols=col_list)
 print("Reading survey data file: {}".format(lr_file))
 
 # Sort the dataframe containing linear referencing
-df_sort = df.sort_values(['River','Reach','RiverStation'], ascending=[True, True, True])
+df_sort = df.sort_values(['River','Reach','RiverStation','MEAS'], ascending=[True, True, True, True])
 
 # Group the dataframe by River, Reach and River Station, then count number of points at each River Station and store it
 df_grouped = df.groupby(['River','Reach','RiverStation']).size().reset_index(name="NumPoints")
