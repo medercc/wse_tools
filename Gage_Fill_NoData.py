@@ -33,8 +33,8 @@ sns.set_palette(sns.set_palette('pastel'))
 #
 # USER INPUTS
 #
-FileName = 'ParadiseCreek_USGS_13346800_15min_2018-2020.txt'
-Agency = "USGS" # KC (King County) or USGS 
+FileName = '17B050_2003-2021_DSG_FM.csv'
+Agency = 'WA_Ecology' # KC (King County), USGS, WA_Ecology, or Generic 
 Timestep = 15 # in minutes
 MaxGap = 180 # in minutes
 DateFormat = '%Y-%m-%d %H:%M' # Format for export only, any datetime format is read in by Pandas, and converted once in memory
@@ -46,11 +46,29 @@ if Agency == "KC": # King County
 	Delimiter = ','
 
 elif Agency == "USGS":
-	HeaderLines = 32 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
+	HeaderLines = 34 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
 	ColumnNames = ['Agency','Gage_ID','Datetime','Timezone','Discharge','Notes'] # Notes 'Discharge' may be 'Stage', as long as it's in the same column location in the input
 	dtypes = {'Agency': 'str', 'Gage_ID': 'str', 'Discharge': 'float', 'Notes': 'str'} # tell Pandas the data type for each column
 	TimeZone = 'PDT' # enter the daylight savings shorthand for timezone in the USGS gage data
 	Delimiter = '\s{2,}'  # tab-delimited: '\t', multiple space-delimited: '\s{2,}'
+
+elif Agency == "Generic": # performs no timezone shifting
+	HeaderLines = 0 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
+	ColumnNames = ['Datetime','Discharge'] # Varies, modify to match input file
+	dtypes = {'Datetime': 'str', 'Discharge': 'float'}
+	Delimiter = ','
+	#InputDateFormat
+
+elif Agency == "WA_Ecology": # performs no timezone shifting
+	HeaderLines = 0 # number of header lines, 0-based (0 is 1 header line), varies with gage and agency
+	ColumnNames = ['Date','Time','Discharge','Code'] # Varies, modify to match input file
+	dtypes = {'Date': 'str', 'Time': 'str', 'Discharge': 'float', 'Code': 'str'}
+	Delimiter = ',' # multiple space-delimited, between 2 and 19 spaces
+	#InputDateFormat	
+
+# Write out datetime index? True or False. True is usually desired. 
+# If 'False', the output file will only include the gage data values, and not the datetime values.
+writeIndex=True
 #
 # END USER INPUTS
 #
@@ -58,7 +76,11 @@ elif Agency == "USGS":
 # Load the gage data into a Pandas dataframe
 # 'engine='python' argument is required to properly implement the delimiter if it is a multiple whitespace character (\s{2,})
 print("Reading input file: {}".format(FileName))
-df = pd.read_csv(FileName, dtype=dtypes, delimiter=Delimiter, header=HeaderLines, names=ColumnNames, index_col=False, engine='python')
+if Agency == "WA_Ecology":
+	# Use parse_dates to create a single datetime field upon import (combined field name is 'Date_Time')
+	df = pd.read_csv(FileName, dtype=dtypes, delimiter=Delimiter, header=HeaderLines, names=ColumnNames, index_col=False, engine='python', parse_dates=[['Date','Time']])
+else:
+	df = pd.read_csv(FileName, dtype=dtypes, delimiter=Delimiter, header=HeaderLines, names=ColumnNames, index_col=False, engine='python')
 
 # Manage timestamps
 if Agency == "KC": # King County
@@ -85,6 +107,20 @@ elif Agency == "USGS":
 	# When Timezone col is PDT (daylight savings time), set Datetime col to LocalDT_Minus_1hr, otherwise keep value in Datetime col (this is PST)
 	df['Datetime'] = np.where((df['Timezone'] == TimeZone), df['LocalDT_Minus_1hr'], df['Datetime'])
 
+elif Agency =="Generic":
+	# Convert to datetime64 format 
+	df['Datetime'] = pd.to_datetime(df['Datetime'])
+
+	# Round Datetime to the nearest 15 mins
+	df['Datetime'] = df['Datetime'].dt.round('15min') 
+
+elif Agency =="WA_Ecology":
+	# Convert to datetime64 format 
+	df['Datetime'] = pd.to_datetime(df['Date_Time'])
+
+	# Round Datetime to the nearest 15 mins
+	df['Datetime'] = df['Datetime'].dt.round('15min') 
+
 # Set the Datetime column as the index
 df.set_index('Datetime', inplace=True)
 
@@ -93,7 +129,7 @@ start_time = df.index[0]
 end_time = df.index[-1]
 
 # Print read data for user verification
-print("Check correct columns were read \nNote that daylight savings timestamps are shifted back 1-hr from the input data")
+print("Check correct columns were read \nNote that daylight savings timestamps are shifted back 1-hr from the input data, if a timezone column was input")
 print("Timeseries start = {}".format(start_time.strftime('%Y-%m-%d %H:%M')))
 print("Timeseries end = {}".format(end_time.strftime('%Y-%m-%d %H:%M')))
 print("Gage value start = {:.1f}".format(df['Discharge'][0]))
@@ -156,7 +192,8 @@ ax.legend()
 #ax.grid()
 ax.set_xlabel('Datetime')
 ax.set_ylabel('Gage Value')
-plt.savefig('gage_data.png', bbox_inches='tight')
+plt_fn = FileName[:-4]+'_filled_plot.png'
+plt.savefig(plt_fn, bbox_inches='tight')
 
 # Make an interactive plot from a trimmed df with Pandas-Bokeh, save it out to html 
 #pandas_bokeh.output_file("gage_plot.html")
@@ -167,7 +204,7 @@ plt.savefig('gage_data.png', bbox_inches='tight')
 print("Writing output file")
 ColNames = ['Discharge']
 fout = FileName[:-4]+'_filled.csv'
-df_full.to_csv(fout, columns=ColNames, index_label='Datetime', date_format=DateFormat)
+df_full.to_csv(fout, columns=ColNames, index=writeIndex, index_label='Datetime', date_format=DateFormat)
 
 # Extract a new df of the rows where interpolation occurred (0 < Consec_Length < TS_gap)
 df_interp = df_full[df_full['Interp_Flag'] == 1]
@@ -192,4 +229,4 @@ with open(fn, 'a') as f:
 
 print("Filled gage data file: {}".format(fout))
 print("Summary of missing and filled date/times: {}".format(fn))
-print("Gage data plot: {}".format('gage_data.png'))
+print("Gage data plot: {}".format(plt_fn))
